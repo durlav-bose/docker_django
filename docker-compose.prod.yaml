@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  web:
+    image: durlavbose/django-app-prod:${IMAGE_TAG:-latest}
+    container_name: django-app-prod
+    command: >
+      sh -c "
+        echo 'Waiting for postgres...' &&
+        while ! nc -z db 5432; do sleep 0.1; done &&
+        python manage.py migrate --noinput &&
+        python manage.py collectstatic --noinput &&
+        gunicorn docker_django.wsgi:application --bind 0.0.0.0:${APP_PORT} --workers 3"
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/mediafiles
+    ports:
+      - "${DOCKER_WEB_PORT}:${APP_PORT}"
+    env_file:
+      - .env.prod
+    depends_on:
+      - db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${APP_PORT}/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  db:
+    image: postgres:13-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env.prod
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:
