@@ -1,0 +1,159 @@
+# version: '3.8'
+
+# services:
+#   web:
+#     build: .
+#     command: >
+#       sh -c "python manage.py makemigrations &&
+#              python manage.py migrate &&
+#              python manage.py runserver 0.0.0.0:8000"
+#     volumes:
+#       - .:/app
+#     ports:
+#       - "8000:8000"
+#     env_file:  # Add this line
+#       - .env
+#     depends_on:
+#       - db
+
+#   db:
+#     image: postgres:13
+#     volumes:
+#       - postgres_data:/var/lib/postgresql/data
+#     env_file:  # Add this line
+#       - .env  # Add this line
+#     ports:
+#       - "5432:5432"
+
+# volumes:
+#   postgres_data:
+
+
+
+# version: '3.8'   # Docker Compose file format version
+
+# services:        # Define the services (containers) to run
+#   web:          # First service named 'web'
+#     build:      # Build configuration for this service
+#       context: .    # Build context is current directory
+#       dockerfile: Dockerfile  # Use this Dockerfile for building
+
+#     command: >
+#       sh -c "python manage.py makemigrations &&
+#             python manage.py migrate &&
+#             python manage.py runserver 0.0.0.0:${APP_PORT}"  # Command to run
+
+#     volumes:    # Mount these volumes
+#       - .:/app  # Mount current directory to /app in container
+#       - static_volume:/app/staticfiles  # Volume for Django static files
+#       - media_volume:/app/mediafiles    # Volume for uploaded files
+
+#     ports:      # Port mapping
+#       - "${DOCKER_WEB_PORT}:${APP_PORT}"  # Map host port to container port
+
+#     env_file:   # Load environment variables
+#       - .env    # From this file
+
+#     depends_on: # This service depends on
+#       - db     # the db service
+
+#     healthcheck:  # Container health monitoring
+#       test: ["CMD", "curl", "-f", "http://localhost:${APP_PORT}"]  # Command to check health
+#       interval: 30s  # Check every 30 seconds
+#       timeout: 10s   # Wait up to 10 seconds for response
+#       retries: 3     # Try 3 times before marking unhealthy
+
+#     restart: unless-stopped  # Restart policy
+
+#   db:           # Database service
+#     image: postgres:13-alpine  # Use this PostgreSQL image
+#     volumes:
+#       - postgres_data:/var/lib/postgresql/data  # Persist database data
+
+#     environment:  # Environment variables for PostgreSQL
+#       - POSTGRES_DB=${POSTGRES_DB}
+#       - POSTGRES_USER=${POSTGRES_USER}
+#       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+
+#     ports:      # Database port mapping
+#       - "${DOCKER_DB_PORT}:${POSTGRES_PORT}"
+
+#     healthcheck:
+#       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+#       interval: 10s
+#       timeout: 5s
+#       retries: 5
+#     restart: unless-stopped
+
+# volumes:       # Define named volumes
+#   postgres_data:   # For database files
+#   static_volume:   # For Django static files
+#   media_volume:    # For user-uploaded files
+
+# networks:      # Network configuration
+#   default:     
+#     driver: bridge  # Use bridge network driver
+
+
+
+
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      sh -c "
+        echo 'Waiting for postgres...' &&
+        while ! nc -z db 5432; do sleep 0.1; done &&
+        echo 'PostgreSQL started' &&
+        echo 'Running makemigrations...' &&
+        python manage.py makemigrations --noinput &&
+        echo 'Running migrations...' &&
+        python manage.py migrate --noinput &&
+        echo 'Migrations complete' &&
+        python manage.py runserver 0.0.0.0:${APP_PORT}"
+    volumes:
+      - .:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/mediafiles
+    ports:
+      - "${DOCKER_WEB_PORT}:${APP_PORT}"
+    env_file:
+      - .env
+    depends_on:
+      - db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${APP_PORT}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  db:
+    image: postgres:13-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - "${DOCKER_DB_PORT}:${POSTGRES_PORT}"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:
+
+networks:
+  default:
+    driver: bridge
