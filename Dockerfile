@@ -14,7 +14,8 @@
 
 
 
-FROM python:3.9-slim
+# FROM python:3.9-slim
+FROM python:3.9-slim-bullseye
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -29,6 +30,15 @@ RUN apt-get update \
         curl \
         netcat-traditional \
         && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+        postgresql-client \
+        curl \
+        netcat-traditional && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 COPY requirements.txt .
